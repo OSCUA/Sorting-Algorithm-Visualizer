@@ -5,6 +5,9 @@ import time
 import numpy as np
 import pygame
 
+def random_color():
+    return "#%06x" % random.randint(0, 0xFFFFFF)
+
 # Initialize pygame mixer
 pygame.mixer.init(frequency=44100, size=-16, channels=1)
 
@@ -22,7 +25,12 @@ ALGORITHMS = {
     "Radix Sort": {"function": "radix_sort", "Best": "O(nk)", "Average": "O(nk)", "Worst": "O(nk)", "Space": "O(n + k)", "Stable": "Yes"},
     "Bucket Sort": {"function": "bucket_sort", "Best": "O(n + k)", "Average": "O(n + k)", "Worst": "O(n²)", "Space": "O(n)", "Stable": "Yes"},
     "Cocktail Sort": {"function": "cocktail_sort", "Best": "O(n)", "Average": "O(n²)", "Worst": "O(n²)", "Space": "O(1)", "Stable": "Yes"},
-    "Tree Sort": {"function": "tree_sort", "Best": "O(n log n)", "Average": "O(n log n)", "Worst": "O(n²)", "Space": "O(n)", "Stable": "No"}
+    "Tree Sort": {"function": "tree_sort", "Best": "O(n log n)", "Average": "O(n log n)", "Worst": "O(n²)", "Space": "O(n)", "Stable": "No"},
+    "Gnome Sort": {"function": "gnome_sort","Best": "O(n)","Average": "O(n²)","Worst": "O(n²)","Space": "O(1)","Stable": "Yes"},
+    "Bitonic Sort": {"function": "bitonic_sort","Best": "O(log² n)","Average": "O(log² n)","Worst": "O(log² n)","Space": "O(n)","Stable": "No"},
+    "Cycle Sort": {"function": "cycle_sort","Best": "O(n²)","Average": "O(n²)","Worst": "O(n²)","Space": "O(1)","Stable": "No"},
+    "Odd-Even Sort": {"function": "odd_even_sort","Best": "O(n)","Average": "O(n²)","Worst": "O(n²)","Space": "O(1)","Stable": "Yes"},
+    "Comb Sort": {"function": "comb_sort","Best": "O(n log n)","Average": "O(n²)","Worst": "O(n²)","Space": "O(1)","Stable": "No"},
 }
 
 
@@ -70,15 +78,28 @@ def draw_data(data, color_array):
     c_width = 600
     x_width = c_width / (len(data) + 1)
     spacing = 5
-    normalized_data = [i / max(data) for i in data]
+
+    # Filter out padding values
+    visible_data = [i for i in data if i != float('inf')]
+    if not visible_data:
+        return
+
+    max_val = max(visible_data)
+    normalized_data = [i / max_val if i != float('inf') else 0 for i in data]
 
     for i, height in enumerate(normalized_data):
+        if data[i] == float('inf'):
+            continue  # skip drawing padding bars
+
         x0 = i * x_width + spacing
         y0 = c_height - height * 340
         x1 = (i + 1) * x_width
         y1 = c_height
         canvas.create_rectangle(x0, y0, x1, y1, fill=color_array[i])
         canvas.create_text(x0 + 2, y0, anchor=tk.SW, text=str(data[i]), font=("Helvetica", 8), fill=TEXT_LIGHT)
+
+    root.update_idletasks()
+
 
     # Overlay
     algo = algorithm_var.get()
@@ -92,6 +113,12 @@ def draw_data(data, color_array):
     canvas.create_text(20, 100, anchor=tk.NW, text=f"Stable: {meta['Stable']}", font=("Helvetica", 9), fill=TEXT_LIGHT)
 
     root.update_idletasks()
+
+def refresh_colors():
+    global COLOR_ACTIVE, COLOR_PASSIVE, COLOR_SORTED
+    COLOR_ACTIVE = random_color()
+    COLOR_PASSIVE = random_color()
+    COLOR_SORTED = random_color()
 
 # Sorting algorithms
 def bubble_sort(data, draw_data, speed):
@@ -412,12 +439,150 @@ def tree_sort(data, draw_data, speed):
 
     completion_sweep(data, draw_data, speed)
 
+def gnome_sort(data, draw_data, speed):
+    index = 0
+    while index < len(data):
+        if index == 0 or data[index] >= data[index - 1]:
+            index += 1
+        else:
+            data[index], data[index - 1] = data[index - 1], data[index]
+            draw_data(data, [COLOR_ACTIVE if x in (index, index - 1) else COLOR_PASSIVE for x in range(len(data))])
+            play_tone(index, len(data))
+            time.sleep(speed)
+            index -= 1
+    completion_sweep(data, draw_data, speed)
+
+def bitonic_sort(data, draw_data, speed):
+    def compare_and_swap(up, i, j):
+        if (up and data[i] > data[j]) or (not up and data[i] < data[j]):
+            data[i], data[j] = data[j], data[i]
+            draw_data(data, [COLOR_ACTIVE if x in (i, j) else COLOR_PASSIVE for x in range(len(data))])
+            play_tone(i, len(data))
+            time.sleep(speed)
+
+    def bitonic_merge(low, cnt, up):
+        if cnt > 1:
+            k = cnt // 2
+            for i in range(low, low + k):
+                compare_and_swap(up, i, i + k)
+            bitonic_merge(low, k, up)
+            bitonic_merge(low + k, k, up)
+
+def bitonic_sort(data, draw_data, speed):
+    def compare_and_swap(arr, i, j, up):
+        if (up and arr[i] > arr[j]) or (not up and arr[i] < arr[j]):
+            arr[i], arr[j] = arr[j], arr[i]
+            draw_data(arr, [COLOR_ACTIVE if x in (i, j) else COLOR_PASSIVE for x in range(len(arr))])
+            play_tone(i, len(arr))
+            time.sleep(speed)
+
+    def bitonic_merge(arr, low, cnt, up):
+        if cnt > 1:
+            k = cnt // 2
+            for i in range(low, low + k):
+                compare_and_swap(arr, i, i + k, up)
+            bitonic_merge(arr, low, k, up)
+            bitonic_merge(arr, low + k, k, up)
+
+    def bitonic_sort_rec(arr, low, cnt, up):
+        if cnt > 1:
+            k = cnt // 2
+            bitonic_sort_rec(arr, low, k, True)
+            bitonic_sort_rec(arr, low + k, k, False)
+            bitonic_merge(arr, low, cnt, up)
+
+    # Pad to next power of two
+    n = len(data)
+    next_pow2 = 1 << (n - 1).bit_length()
+    padded_data = data + [float('inf')] * (next_pow2 - n)
+
+    bitonic_sort_rec(padded_data, 0, len(padded_data), True)
+
+    # Remove padding
+    data[:] = [x for x in padded_data if x != float('inf')]
+    completion_sweep(data, draw_data, speed)
+
+def cycle_sort(data, draw_data, speed):
+    n = len(data)
+    for cycle_start in range(n - 1):
+        item = data[cycle_start]
+        pos = cycle_start
+        for i in range(cycle_start + 1, n):
+            if data[i] < item:
+                pos += 1
+        if pos == cycle_start:
+            continue
+        while item == data[pos]:
+            pos += 1
+        data[pos], item = item, data[pos]
+        draw_data(data, [COLOR_ACTIVE if x == pos else COLOR_PASSIVE for x in range(n)])
+        play_tone(pos, n)
+        time.sleep(speed)
+        while pos != cycle_start:
+            pos = cycle_start
+            for i in range(cycle_start + 1, n):
+                if data[i] < item:
+                    pos += 1
+            while item == data[pos]:
+                pos += 1
+            data[pos], item = item, data[pos]
+            draw_data(data, [COLOR_ACTIVE if x == pos else COLOR_PASSIVE for x in range(n)])
+            play_tone(pos, n)
+            time.sleep(speed)
+    completion_sweep(data, draw_data, speed)
+
+def odd_even_sort(data, draw_data, speed):
+    n = len(data)
+    sorted = False
+    while not sorted:
+        sorted = True
+        for i in range(1, n - 1, 2):
+            if data[i] > data[i + 1]:
+                data[i], data[i + 1] = data[i + 1], data[i]
+                sorted = False
+                draw_data(data, [COLOR_ACTIVE if x in (i, i + 1) else COLOR_PASSIVE for x in range(n)])
+                play_tone(i, n)
+                time.sleep(speed)
+        for i in range(0, n - 1, 2):
+            if data[i] > data[i + 1]:
+                data[i], data[i + 1] = data[i + 1], data[i]
+                sorted = False
+                draw_data(data, [COLOR_ACTIVE if x in (i, i + 1) else COLOR_PASSIVE for x in range(n)])
+                play_tone(i, n)
+                time.sleep(speed)
+    completion_sweep(data, draw_data, speed)
+
+def comb_sort(data, draw_data, speed):
+    n = len(data)
+    gap = n
+    shrink = 1.3
+    sorted = False
+    while not sorted:
+        gap = int(gap / shrink)
+        if gap <= 1:
+            gap = 1
+            sorted = True
+        i = 0
+        while i + gap < n:
+            if data[i] > data[i + gap]:
+                data[i], data[i + gap] = data[i + gap], data[i]
+                sorted = False
+                draw_data(data, [COLOR_ACTIVE if x in (i, i + gap) else COLOR_PASSIVE for x in range(n)])
+                play_tone(i, n)
+                time.sleep(speed)
+            i += 1
+    completion_sweep(data, draw_data, speed)
+
+
+
 
 # Start sorting
 def start_sort():
     global data
     speed = speed_scale.get()
     algo = algorithm_var.get()
+    if rand_colors.get() == True:
+        refresh_colors()
     sort_fn = globals()[ALGORITHMS[algo]["function"]]
     sort_fn(data, draw_data, speed)
 
@@ -455,14 +620,28 @@ speed_scale = ttk.Scale(frame, from_=0.01, to=0.2, length=150, orient=tk.HORIZON
 speed_scale.set(0.05)
 speed_scale.grid(row=0, column=3)
 
+rand_colors = tk.BooleanVar(value=True)
+
 tk.Button(frame, text="Generate Array", command=generate_data, bg="#444", fg=TEXT_LIGHT).grid(row=0, column=4, padx=5)
 tk.Button(frame, text="Start", command=start_sort, bg="#444", fg=TEXT_LIGHT).grid(row=0, column=5, padx=5)
 tk.Button(frame, text="Autoplay", command=autoplay, bg="#444", fg=TEXT_LIGHT).grid(row=0, column=6, padx=5)
+tk.Checkbutton(
+    frame,
+    text="Random Colors",        # label next to the box
+    variable=rand_colors,
+    onvalue=True,
+    offvalue=False,
+    bg=FRAME_DARK,
+    fg=TEXT_LIGHT,
+    selectcolor=BG_DARK   # dark theme
+).grid(row=0, column=7, padx=5)
+
 
 algorithm_var = tk.StringVar()
 algorithm_menu = ttk.Combobox(frame, textvariable=algorithm_var, values=list(ALGORITHMS.keys()), state="readonly")
 algorithm_menu.grid(row=0, column=7)
 algorithm_menu.set("Bubble Sort")
+rand_colors = tk.BooleanVar(value=True)  # starts checked
 
 canvas = tk.Canvas(root, width=600, height=380, bg=CANVAS_DARK, highlightthickness=0)
 canvas.pack(pady=20)
