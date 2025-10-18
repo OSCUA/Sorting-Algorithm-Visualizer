@@ -38,7 +38,7 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 Install dependencies:
 
 ```bash
-pip install pygame matplotilb numpy
+pip install pygame numpy matplotilb
 ```
 
 Run the program:
@@ -49,8 +49,8 @@ python main.py
 
 ## 🧠 Supported Algorithms
 
-Includes classics like Bubble, Merge, Quick, Heap, and Insertion — plus ceremonial oddities like Stalin Sort, Gravity Sort, and Bitonic Sort. Each algorithm is visualized with color-coded comparisons and optional sound rituals. More coming eventually!
+Includes classics like Bubble, Merge, Quick, Heap, and Insertion — plus oddities like Stalin Sort, Gravity Sort, and Bitonic Sort. Each algorithm is visualized with color-coded bars and sound. More algorithms coming eventually!
 
 ## 🪄 Contributions & Rituals
 
-Feel free to fork, expand, or PR for more algorithms. Add new algorithms, overlays, or accessibility features.
+Feel free to fork, expand, or PR for more features. Add new algorithms, overlays, or accessibility features.
